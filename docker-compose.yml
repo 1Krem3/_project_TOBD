@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    working_dir: /app
+    restart: unless-stopped
+
+  prefect-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.prefect
+    ports:
+      - "4200:4200"
+    working_dir: /app
+    command: ["prefect", "server", "start", "--host", "0.0.0.0"]
+    restart: unless-stopped
+
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile.etl
+    working_dir: /app
+    command: ["uv", "run", "flows/etl_flow.py"]
+    volumes:
+      - /home/user/Desktop/air-quality-project/data/:/home/user/Desktop/air-quality-project/data/
+    depends_on:
+      - prefect-server
+    restart: on-failure
+
+  # === ТУННЕЛЬ ЧЕРЕЗ localhost.run ===
+  localhost-run-tunnel:
+    image: alpine:latest
+    depends_on:
+      - streamlit
+    command: >
+      sh -c "
+        apk add --no-cache openssh-client curl &&
+        echo '🔌 Starting localhost.run tunnel to Streamlit (port 8501)...' &&
+        ssh -o StrictHostKeyChecking=no -R 80:streamlit:8501 nokey@localhost.run
+      "
+    restart: unless-stopped

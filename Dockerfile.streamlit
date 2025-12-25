@@ -1,0 +1,25 @@
+# Dockerfile.streamlit
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Установка uv
+RUN pip install uv
+
+# Копируем только pyproject.toml для установки зависимостей
+COPY pyproject.toml .
+
+# Устанавливаем ВСЕ зависимости (включая streamlit)
+# --frozen — использует lock-файл, если есть; если нет — можно убрать
+# --no-dev — пропускает dev-зависимости, если не нужны
+RUN uv sync
+
+# Копируем исходники
+COPY dashboard ./dashboard
+COPY data ./data
+
+# Порт Streamlit
+EXPOSE 8501
+
+# Запуск через uv run — это гарантирует, что зависимости из .venv видны
+CMD ["uv", "run", "streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
